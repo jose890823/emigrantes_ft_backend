@@ -102,6 +102,74 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date | null;
 
+  // ============================================
+  // CAMPOS DE PERFIL EXTENDIDO
+  // ============================================
+
+  @ApiProperty({
+    example: 'https://emigrantes-ft.s3.amazonaws.com/profile-photos/user123.jpg',
+    description: 'URL de la foto de perfil del usuario',
+    required: false,
+  })
+  @Column({ type: 'text', nullable: true })
+  profilePhoto: string | null;
+
+  @ApiProperty({
+    example: '123 Main Street, Apt 4B',
+    description: 'Dirección completa del usuario',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  address: string | null;
+
+  @ApiProperty({
+    example: 'Miami',
+    description: 'Ciudad',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  city: string | null;
+
+  @ApiProperty({
+    example: 'Florida',
+    description: 'Estado/Provincia',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  state: string | null;
+
+  @ApiProperty({
+    example: '33166',
+    description: 'Código postal',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  zipCode: string | null;
+
+  @ApiProperty({
+    example: 'United States',
+    description: 'País',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  country: string | null;
+
+  @ApiProperty({
+    example: '1990-05-15',
+    description: 'Fecha de nacimiento',
+    required: false,
+  })
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth: Date | null;
+
+  @ApiProperty({
+    example: 'V-12345678',
+    description: 'Número de identificación (encriptado)',
+    required: false,
+  })
+  @Column({ type: 'text', nullable: true })
+  identificationNumber: string | null;
+
   @Exclude() // Token sensible, no exponer
   @Column({ type: 'varchar', length: 500, nullable: true })
   refreshToken: string | null;

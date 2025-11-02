@@ -12,6 +12,7 @@ import { join } from 'path';
 
 // Importar módulos del dominio de Emigrantes FT
 import { AuthModule } from './modules/auth/auth.module';
+import { PoaModule } from './modules/poa/poa.module';
 
 // Importación condicional de módulos opcionales
 let EmailModule: any = null;
@@ -31,6 +32,7 @@ if (existsSync(emailModulePath + '.ts') || existsSync(emailModulePath + '.js')) 
   imports: [
     DatabaseModule,
     AuthModule,
+    PoaModule,
     // Módulos opcionales
     ...(EmailModule ? [EmailModule] : []),
   ],
@@ -59,6 +61,7 @@ export class AppModule {
       '💾 DatabaseModule configurado con PostgreSQL emigrantes_ft',
     );
     AppModule.logger.log('🔐 AuthModule integrado - Autenticación JWT completa');
+    AppModule.logger.log('📄 PoaModule integrado - Gestión de Power of Attorney');
 
     // Log módulos opcionales
     if (EmailModule) {
