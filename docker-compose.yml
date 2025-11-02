@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # 🗄️ POSTGRESQL - Base de datos principal
+  postgres:
+    image: postgres:15-alpine
+    container_name: modular-base-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: modular_base
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d modular_base"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 📊 PGADMIN - Interfaz web para PostgreSQL (opcional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: modular-base-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@modular-base.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# 📝 INSTRUCCIONES DE USO:
+#
+# 1. INICIAR POSTGRESQL:
+#    docker-compose up postgres -d
+#
+# 2. INICIAR TODO (PostgreSQL + PgAdmin):
+#    docker-compose up -d
+#
+# 3. DETENER SERVICIOS:
+#    docker-compose down
+#
+# 4. LIMPIAR DATOS:
+#    docker-compose down -v
+#
+# 🔗 ACCESOS:
+# - PostgreSQL: localhost:5432
+# - PgAdmin: http://localhost:8080
+#   Usuario: admin@modular-base.com
+#   Contraseña: admin123
+#
+# 📊 CONEXIÓN EN PGADMIN:
+# Host: postgres
+# Port: 5432
+# Database: modular_base
+# Username: postgres
+# Password: postgres
