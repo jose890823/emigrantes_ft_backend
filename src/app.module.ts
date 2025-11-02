@@ -13,6 +13,8 @@ import { join } from 'path';
 // Importar módulos del dominio de Emigrantes FT
 import { AuthModule } from './modules/auth/auth.module';
 import { PoaModule } from './modules/poa/poa.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UsersModule } from './modules/users/users.module';
 
 // Importación condicional de módulos opcionales
 let EmailModule: any = null;
@@ -33,6 +35,8 @@ if (existsSync(emailModulePath + '.ts') || existsSync(emailModulePath + '.js')) 
     DatabaseModule,
     AuthModule,
     PoaModule,
+    NotificationsModule,
+    UsersModule,
     // Módulos opcionales
     ...(EmailModule ? [EmailModule] : []),
   ],
@@ -62,6 +66,7 @@ export class AppModule {
     );
     AppModule.logger.log('🔐 AuthModule integrado - Autenticación JWT completa');
     AppModule.logger.log('📄 PoaModule integrado - Gestión de Power of Attorney');
+    AppModule.logger.log('🔔 NotificationsModule integrado - Sistema multi-canal con cola de procesamiento');
 
     // Log módulos opcionales
     if (EmailModule) {

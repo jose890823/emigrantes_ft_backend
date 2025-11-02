@@ -1,0 +1,205 @@
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+  ParseEnumPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { UsersService } from './services/users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { User, UserRole } from '../auth/entities/user.entity';
+import { UserFilterDto } from './dto/user-filter.dto';
+
+@ApiTags('Users - Admin')
+@Controller('users/admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@ApiBearerAuth()
+export class UsersAdminController {
+  constructor(private readonly usersService: UsersService) {}
+
+  // ============================================
+  // USER MANAGEMENT
+  // ============================================
+
+  @Get('all')
+  @ApiOperation({
+    summary: 'Get all users (Admin)',
+    description: 'Get all users with filters and pagination',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of users',
+  })
+  async getAllUsers(@Query() filter: UserFilterDto) {
+    return this.usersService.findAll(filter);
+  }
+
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search users (Admin)',
+    description: 'Search users by email or name',
+  })
+  @ApiQuery({
+    name: 'q',
+    description: 'Search query',
+    example: 'juan',
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Maximum results',
+    required: false,
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Search results',
+    type: [User],
+  })
+  async searchUsers(
+    @Query('q') query: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.usersService.searchUsers(query, limit);
+  }
+
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Get user statistics (Admin)',
+    description: 'Get comprehensive user statistics',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics',
+  })
+  async getStats() {
+    return this.usersService.getStats();
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get user by ID (Admin)',
+    description: 'Get detailed user information',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    type: User,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findById(id);
+  }
+
+  // ============================================
+  // USER ROLE MANAGEMENT
+  // ============================================
+
+  @Patch(':id/role')
+  @Roles(UserRole.SUPER_ADMIN) // Only super admin can change roles
+  @ApiOperation({
+    summary: 'Update user role (Super Admin)',
+    description: 'Change user role (only super admins)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Role updated',
+    type: User,
+  })
+  async updateRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('role', new ParseEnumPipe(UserRole)) role: UserRole,
+  ) {
+    return this.usersService.updateRole(id, role);
+  }
+
+  // ============================================
+  // USER STATUS MANAGEMENT
+  // ============================================
+
+  @Patch(':id/activate')
+  @ApiOperation({
+    summary: 'Activate user (Admin)',
+    description: 'Activate a deactivated user',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User activated',
+    type: User,
+  })
+  async activateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.toggleActive(id, true);
+  }
+
+  @Patch(':id/deactivate')
+  @ApiOperation({
+    summary: 'Deactivate user (Admin)',
+    description: 'Deactivate a user (prevents login)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User deactivated',
+    type: User,
+  })
+  async deactivateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.toggleActive(id, false);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.SUPER_ADMIN) // Only super admin can delete users
+  @ApiOperation({
+    summary: 'Delete user (Super Admin)',
+    description: 'Soft delete a user (only super admins)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted',
+  })
+  async deleteUser(@Param('id', ParseUUIDPipe) id: string) {
+    await this.usersService.deleteUser(id);
+
+    return {
+      success: true,
+      message: 'User deleted successfully',
+    };
+  }
+}
