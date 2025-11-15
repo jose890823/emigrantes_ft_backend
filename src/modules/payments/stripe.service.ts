@@ -21,7 +21,7 @@ export class StripeService {
 
     try {
       this.stripe = new Stripe(apiKey, {
-        apiVersion: '2024-11-20.acacia',
+        apiVersion: '2025-10-29.clover',
         typescript: true,
       });
       this.isConfigured = true;

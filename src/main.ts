@@ -9,6 +9,9 @@ async function bootstrap() {
   // Crear la aplicación usando el módulo estático
   const app = await NestFactory.create(AppModule);
 
+  // Configurar prefijo global
+  app.setGlobalPrefix('api');
+
   // Configurar validation pipe global
   app.useGlobalPipes(
     new ValidationPipe({

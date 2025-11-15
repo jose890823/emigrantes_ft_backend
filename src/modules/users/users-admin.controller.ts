@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Put,
   Patch,
   Delete,
   Body,
@@ -19,11 +20,14 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './services/users.service';
+import { UserActivityService } from './services/user-activity.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User, UserRole } from '../auth/entities/user.entity';
+import { UserActivity } from './entities/user-activity.entity';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
 
 @ApiTags('Users - Admin')
 @Controller('users/admin')
@@ -31,7 +35,10 @@ import { UserFilterDto } from './dto/user-filter.dto';
 @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @ApiBearerAuth()
 export class UsersAdminController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly activityService: UserActivityService,
+  ) {}
 
   // ============================================
   // USER MANAGEMENT
@@ -112,6 +119,41 @@ export class UsersAdminController {
   })
   async getUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findById(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Update user (Admin)',
+    description:
+      'Update any field of a user. Admins can modify profile, role, verification status, etc.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: User,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot perform this action (e.g., demoting last super admin)',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email already in use',
+  })
+  async updateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateUserAdminDto,
+  ) {
+    return this.usersService.updateUserAdmin(id, updateDto);
   }
 
   // ============================================
@@ -201,5 +243,79 @@ export class UsersAdminController {
       success: true,
       message: 'User deleted successfully',
     };
+  }
+
+  // ============================================
+  // USER ACTIVITY / AUDIT TRAIL
+  // ============================================
+
+  @Get(':id/activity')
+  @ApiOperation({
+    summary: 'Get user activity history (Admin)',
+    description: 'Get complete audit trail of user activities',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Number of activities to return',
+    required: false,
+    example: 50,
+  })
+  @ApiQuery({
+    name: 'offset',
+    description: 'Offset for pagination',
+    required: false,
+    example: 0,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User activity history',
+    type: [UserActivity],
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUserActivity(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    // Verify user exists
+    await this.usersService.findById(userId);
+
+    return this.activityService.getUserActivities(userId, {
+      limit: limit ? parseInt(limit.toString()) : 50,
+      offset: offset ? parseInt(offset.toString()) : 0,
+    });
+  }
+
+  @Get(':id/activity/stats')
+  @ApiOperation({
+    summary: 'Get user activity statistics (Admin)',
+    description: 'Get aggregated statistics about user activities',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User activity statistics',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUserActivityStats(@Param('id', ParseUUIDPipe) userId: string) {
+    // Verify user exists
+    await this.usersService.findById(userId);
+
+    return this.activityService.getUserActivityStats(userId);
   }
 }

@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { User, UserRole } from '../../auth/entities/user.entity';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { UpdateUserAdminDto } from '../dto/update-user-admin.dto';
 import { SendPhoneOtpDto, VerifyPhoneDto } from '../dto/verify-phone.dto';
 import { UserFilterDto } from '../dto/user-filter.dto';
 import { SmsService } from './sms.service';
@@ -150,6 +151,11 @@ export class UsersService {
     }
 
     await this.userRepository.save(user);
+
+    // Log OTP in development for testing when SMS doesn't work
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(`🔐 [DEV] OTP Code for ${dto.phone}: ${otpCode}`);
+    }
 
     // Send OTP via SMS
     await this.smsService.sendPhoneVerificationOtp(dto.phone, otpCode);
@@ -311,6 +317,97 @@ export class UsersService {
     await this.userRepository.softRemove(user);
 
     this.logger.log(`🗑️  User ${userId} soft deleted`);
+  }
+
+  /**
+   * Update user by admin (any field)
+   */
+  async updateUserAdmin(
+    userId: string,
+    updateDto: UpdateUserAdminDto,
+  ): Promise<User> {
+    const user = await this.findById(userId);
+
+    // Check email uniqueness if changing email
+    if (updateDto.email && updateDto.email !== user.email) {
+      const existingUser = await this.userRepository.findOne({
+        where: { email: updateDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email already in use');
+      }
+
+      user.email = updateDto.email;
+      // If email changed, mark as unverified
+      user.emailVerified = updateDto.emailVerified ?? false;
+    }
+
+    // Update basic fields
+    if (updateDto.firstName !== undefined) user.firstName = updateDto.firstName;
+    if (updateDto.lastName !== undefined) user.lastName = updateDto.lastName;
+
+    // Update phone
+    if (updateDto.phone && updateDto.phone !== user.phone) {
+      user.phone = updateDto.phone;
+      user.phoneVerified = updateDto.phoneVerified ?? false;
+    }
+
+    // Update verification status (if explicitly provided)
+    if (updateDto.emailVerified !== undefined && updateDto.email === undefined) {
+      user.emailVerified = updateDto.emailVerified;
+    }
+    if (updateDto.phoneVerified !== undefined && updateDto.phone === undefined) {
+      user.phoneVerified = updateDto.phoneVerified;
+    }
+
+    // Update role (with validation)
+    if (updateDto.role !== undefined) {
+      // Prevent demoting the last super admin
+      if (user.role === UserRole.SUPER_ADMIN && updateDto.role !== UserRole.SUPER_ADMIN) {
+        const superAdminCount = await this.userRepository.count({
+          where: { role: UserRole.SUPER_ADMIN },
+        });
+
+        if (superAdminCount <= 1) {
+          throw new BadRequestException(
+            'Cannot demote the last super admin',
+          );
+        }
+      }
+      user.role = updateDto.role;
+    }
+
+    // Update active status (with validation)
+    if (updateDto.isActive !== undefined) {
+      // Prevent deactivating super admins
+      if (user.role === UserRole.SUPER_ADMIN && !updateDto.isActive) {
+        throw new BadRequestException('Cannot deactivate super admin');
+      }
+      user.isActive = updateDto.isActive;
+    }
+
+    // Update profile fields
+    if (updateDto.address !== undefined) user.address = updateDto.address;
+    if (updateDto.city !== undefined) user.city = updateDto.city;
+    if (updateDto.state !== undefined) user.state = updateDto.state;
+    if (updateDto.zipCode !== undefined) user.zipCode = updateDto.zipCode;
+    if (updateDto.country !== undefined) user.country = updateDto.country;
+    if (updateDto.dateOfBirth !== undefined) {
+      user.dateOfBirth = new Date(updateDto.dateOfBirth);
+    }
+
+    // Encrypt identification number if provided
+    if (updateDto.identificationNumber !== undefined) {
+      user.identificationNumber = updateDto.identificationNumber
+        ? this.encryptionService.encrypt(updateDto.identificationNumber)
+        : null;
+    }
+
+    const updated = await this.userRepository.save(user);
+    this.logger.log(`✏️  User ${userId} updated by admin`);
+
+    return updated;
   }
 
   /**
