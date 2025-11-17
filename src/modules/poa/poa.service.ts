@@ -7,7 +7,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, In } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { POA, POAStatus, POAType } from './entities/poa.entity';
@@ -996,6 +996,60 @@ export class PoaService {
       this.logger.error('Error fetching POA statistics', error.stack);
       throw new InternalServerErrorException(
         'Error al obtener estadísticas de POA',
+      );
+    }
+  }
+
+  /**
+   * Get client dashboard statistics
+   * Returns stats specific to a client for their dashboard
+   */
+  async getClientStats(clientId: string) {
+    this.logger.log(`Fetching dashboard statistics for client ${clientId}`);
+
+    try {
+      // Count active POAs (not cancelled or draft)
+      const activePoas = await this.poaRepository.count({
+        where: {
+          clientId,
+          status: Not(In([POAStatus.CANCELLED, POAStatus.DRAFT])),
+        },
+      });
+
+      // Get all client's POAs to count their documents
+      const clientPoas = await this.poaRepository.find({
+        where: { clientId },
+        select: ['id'],
+      });
+
+      // Count total documents across all client's POAs
+      let totalDocuments = 0;
+      if (clientPoas.length > 0) {
+        const poaIds = clientPoas.map((poa) => poa.id);
+        totalDocuments = await this.documentRepository.count({
+          where: {
+            poaId: In(poaIds),
+          },
+        });
+      }
+
+      // TODO: Add payments and notifications count when those modules are implemented
+      const totalPayments = 0;
+      const unreadNotifications = 0;
+
+      return {
+        activePoas,
+        totalDocuments,
+        totalPayments,
+        unreadNotifications,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error fetching client stats for ${clientId}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Error al obtener estadísticas del dashboard',
       );
     }
   }

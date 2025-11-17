@@ -72,6 +72,27 @@ export class PoaController {
     return this.poaService.findByClient(userId);
   }
 
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Obtener estadísticas del dashboard',
+    description: 'Obtiene las estadísticas del cliente para el dashboard (POAs activos, documentos, pagos, notificaciones).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estadísticas del dashboard',
+    schema: {
+      example: {
+        activePoas: 3,
+        totalDocuments: 12,
+        totalPayments: 0,
+        unreadNotifications: 0,
+      },
+    },
+  })
+  async getStats(@CurrentUser('id') userId: string) {
+    return this.poaService.getClientStats(userId);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Ver POA específico',
