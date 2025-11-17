@@ -7,11 +7,12 @@ import { POA } from './entities/poa.entity';
 import { POADocument } from './entities/poa-document.entity';
 import { POAHistory } from './entities/poa-history.entity';
 import { POAExecution } from './entities/poa-execution.entity';
+import { POAMessage } from './entities/poa-message.entity';
 import { EncryptionService } from '../../shared/encryption.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([POA, POADocument, POAHistory, POAExecution]),
+    TypeOrmModule.forFeature([POA, POADocument, POAHistory, POAExecution, POAMessage]),
   ],
   controllers: [PoaController, PoaAdminController],
   providers: [PoaService, EncryptionService],

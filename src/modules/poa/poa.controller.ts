@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -22,8 +23,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreatePoaDto } from './dto/create-poa.dto';
 import { UpdatePoaDto } from './dto/update-poa.dto';
 import { SubmitPoaDto } from './dto/submit-poa.dto';
+import { CreateMessageDto } from './dto/create-message.dto';
 import { POA } from './entities/poa.entity';
 import { POAHistory } from './entities/poa-history.entity';
+import { POAMessage, MessageSenderType } from './entities/poa-message.entity';
 
 @ApiTags('POA - Cliente')
 @Controller('poa')
@@ -374,5 +377,151 @@ export class PoaController {
 
     await this.poaService.deleteDocument(id, documentId);
     return { message: 'Documento eliminado exitosamente' };
+  }
+
+  // ============================================
+  // MESSAGE ENDPOINTS
+  // ============================================
+
+  @Post(':id/messages')
+  @ApiOperation({
+    summary: 'Enviar mensaje al admin',
+    description:
+      'Permite al cliente enviar un mensaje o consulta al admin sobre su POA.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Mensaje enviado exitosamente',
+    type: POAMessage,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'POA no encontrado',
+  })
+  async sendMessage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') clientId: string,
+    @Body() createMessageDto: CreateMessageDto,
+  ) {
+    // First verify user owns this POA
+    await this.poaService.findOne(id, clientId, false);
+    return this.poaService.createMessage(
+      id,
+      clientId,
+      MessageSenderType.CLIENT,
+      createMessageDto,
+    );
+  }
+
+  @Get(':id/messages')
+  @ApiOperation({
+    summary: 'Ver mensajes del POA',
+    description:
+      'Obtiene todos los mensajes (admin y cliente) de un POA específico.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de mensajes',
+    type: [POAMessage],
+  })
+  async getPoaMessages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') clientId: string,
+  ) {
+    // First verify user owns this POA
+    await this.poaService.findOne(id, clientId, false);
+    return this.poaService.getMessages(id);
+  }
+
+  @Patch('messages/:messageId/read')
+  @ApiOperation({
+    summary: 'Marcar mensaje como leído',
+    description: 'Marca un mensaje específico como leído por el cliente.',
+  })
+  @ApiParam({
+    name: 'messageId',
+    description: 'ID del mensaje',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mensaje marcado como leído',
+    type: POAMessage,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Mensaje no encontrado',
+  })
+  async markClientMessageAsRead(
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser('id') clientId: string,
+  ) {
+    return this.poaService.markMessageAsRead(messageId, clientId);
+  }
+
+  @Delete('messages/:messageId')
+  @ApiOperation({
+    summary: 'Eliminar mensaje no leído',
+    description:
+      'Elimina un mensaje que aún no ha sido leído. Solo el remitente puede eliminar sus propios mensajes.',
+  })
+  @ApiParam({
+    name: 'messageId',
+    description: 'ID del mensaje',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mensaje eliminado exitosamente',
+    schema: {
+      example: { message: 'Mensaje eliminado exitosamente' },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El mensaje ya fue leído o no eres el remitente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Mensaje no encontrado',
+  })
+  async deleteClientMessage(
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser('id') clientId: string,
+  ) {
+    await this.poaService.deleteMessage(
+      messageId,
+      clientId,
+      MessageSenderType.CLIENT,
+    );
+    return { message: 'Mensaje eliminado exitosamente' };
+  }
+
+  @Get('messages/unread-count')
+  @ApiOperation({
+    summary: 'Obtener cantidad de mensajes no leídos',
+    description:
+      'Obtiene el conteo de mensajes no leídos enviados por admins al cliente.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Conteo de mensajes no leídos',
+    schema: {
+      example: { unreadCount: 3 },
+    },
+  })
+  async getClientUnreadCount(@CurrentUser('id') clientId: string) {
+    const count = await this.poaService.getUnreadMessageCount(clientId, false);
+    return { unreadCount: count };
   }
 }

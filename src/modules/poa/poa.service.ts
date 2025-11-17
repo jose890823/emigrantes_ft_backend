@@ -17,6 +17,7 @@ import {
   POAExecutionStatus,
 } from './entities/poa-execution.entity';
 import { POADocument } from './entities/poa-document.entity';
+import { POAMessage, MessageSenderType } from './entities/poa-message.entity';
 import { EncryptionService } from '../../shared/encryption.service';
 import { CreatePoaDto } from './dto/create-poa.dto';
 import { UpdatePoaDto } from './dto/update-poa.dto';
@@ -28,6 +29,7 @@ import { NotarizePoaDto } from './dto/notarize-poa.dto';
 import { ActivatePoaDto } from './dto/activate-poa.dto';
 import { ExecuteInstructionDto } from './dto/execute-instruction.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { CreateMessageDto } from './dto/create-message.dto';
 
 @Injectable()
 export class PoaService {
@@ -42,6 +44,8 @@ export class PoaService {
     private executionRepository: Repository<POAExecution>,
     @InjectRepository(POADocument)
     private documentRepository: Repository<POADocument>,
+    @InjectRepository(POAMessage)
+    private messageRepository: Repository<POAMessage>,
     private encryptionService: EncryptionService,
   ) {}
 
@@ -1052,5 +1056,170 @@ export class PoaService {
         'Error al obtener estadísticas del dashboard',
       );
     }
+  }
+
+  // ============================================
+  // MESSAGE METHODS
+  // ============================================
+
+  /**
+   * Create a new message for a POA
+   */
+  async createMessage(
+    poaId: string,
+    senderId: string,
+    senderType: MessageSenderType,
+    createMessageDto: CreateMessageDto,
+  ): Promise<POAMessage> {
+    // Verify POA exists
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    // Create message
+    const message = this.messageRepository.create({
+      poaId,
+      senderId,
+      senderType,
+      type: createMessageDto.type,
+      subject: createMessageDto.subject,
+      message: createMessageDto.message,
+    });
+
+    const savedMessage = await this.messageRepository.save(message);
+    this.logger.log(
+      `Message created for POA ${poaId} by ${senderType} ${senderId}`,
+    );
+
+    return savedMessage;
+  }
+
+  /**
+   * Get all messages for a POA
+   */
+  async getMessages(poaId: string): Promise<POAMessage[]> {
+    // Verify POA exists
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    return this.messageRepository.find({
+      where: { poaId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Mark a message as read
+   */
+  async markMessageAsRead(
+    messageId: string,
+    userId: string,
+  ): Promise<POAMessage> {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['poa'],
+    });
+
+    if (!message) {
+      throw new NotFoundException(`Mensaje con ID ${messageId} no encontrado`);
+    }
+
+    // Only mark as read if not already read
+    if (!message.isRead) {
+      message.isRead = true;
+      message.readAt = new Date();
+      await this.messageRepository.save(message);
+      this.logger.log(`Message ${messageId} marked as read by user ${userId}`);
+    }
+
+    return message;
+  }
+
+  /**
+   * Delete a message (only if not read)
+   */
+  async deleteMessage(
+    messageId: string,
+    userId: string,
+    senderType: MessageSenderType,
+  ): Promise<void> {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException(`Mensaje con ID ${messageId} no encontrado`);
+    }
+
+    // Verify the user is the sender
+    if (message.senderId !== userId || message.senderType !== senderType) {
+      throw new BadRequestException(
+        'Solo puedes eliminar tus propios mensajes',
+      );
+    }
+
+    // Only allow deletion if message has not been read
+    if (message.isRead) {
+      throw new BadRequestException(
+        'No puedes eliminar un mensaje que ya ha sido leído',
+      );
+    }
+
+    await this.messageRepository.remove(message);
+    this.logger.log(
+      `Message ${messageId} deleted by ${senderType} user ${userId}`,
+    );
+  }
+
+  /**
+   * Get unread message count for a user (client or admin)
+   */
+  async getUnreadMessageCount(
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<number> {
+    if (isAdmin) {
+      // For admins: count unread messages sent by clients across all POAs
+      const count = await this.messageRepository.count({
+        where: {
+          senderType: MessageSenderType.CLIENT,
+          isRead: false,
+        },
+      });
+      return count;
+    } else {
+      // For clients: count unread messages sent by admins in their POAs
+      const clientPoas = await this.poaRepository.find({
+        where: { clientId: userId },
+        select: ['id'],
+      });
+
+      if (clientPoas.length === 0) {
+        return 0;
+      }
+
+      const poaIds = clientPoas.map((poa) => poa.id);
+      const count = await this.messageRepository.count({
+        where: {
+          poaId: In(poaIds),
+          senderType: MessageSenderType.ADMIN,
+          isRead: false,
+        },
+      });
+      return count;
+    }
+  }
+
+  /**
+   * Get unread messages for a specific POA
+   */
+  async getUnreadMessagesForPoa(poaId: string): Promise<POAMessage[]> {
+    return this.messageRepository.find({
+      where: { poaId, isRead: false },
+      order: { createdAt: 'DESC' },
+    });
   }
 }
