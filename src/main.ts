@@ -2,12 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import * as express from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   // Crear la aplicación usando el módulo estático
   const app = await NestFactory.create(AppModule);
+
+  // Configurar límite de tamaño para body parser (para archivos base64)
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // Configurar servicio de archivos estáticos para uploads
+  app.use('/uploads', express.static('uploads'));
 
   // Configurar prefijo global
   app.setGlobalPrefix('api');

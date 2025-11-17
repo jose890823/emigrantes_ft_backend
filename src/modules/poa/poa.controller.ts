@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -236,5 +237,121 @@ export class PoaController {
     // First verify user has permission to view this POA
     await this.poaService.findOne(id, userId, false);
     return this.poaService.getExecutions(id);
+  }
+
+  // ============================================
+  // DOCUMENT ENDPOINTS
+  // ============================================
+
+  @Get(':id/documents')
+  @ApiOperation({
+    summary: 'Listar documentos del POA',
+    description: 'Obtiene todos los documentos adjuntos a un POA (solo si es el dueño).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de documentos',
+  })
+  async getDocuments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    // First verify user has permission to view this POA
+    await this.poaService.findOne(id, userId, false);
+    return this.poaService.getDocuments(id);
+  }
+
+  @Post(':id/documents')
+  @ApiOperation({
+    summary: 'Subir documento al POA',
+    description: 'Sube un nuevo documento adjunto al POA (solo si es el dueño).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Documento subido exitosamente',
+  })
+  async uploadDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() uploadDto: any,
+  ) {
+    // First verify user has permission to modify this POA
+    await this.poaService.findOne(id, userId, false);
+    return this.poaService.uploadDocument(id, uploadDto);
+  }
+
+  @Get(':id/documents/:documentId/download')
+  @ApiOperation({
+    summary: 'Descargar documento del POA',
+    description: 'Descarga un documento adjunto del POA (solo si es el dueño).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiParam({
+    name: 'documentId',
+    description: 'ID del documento',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Archivo del documento',
+  })
+  async downloadDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    // First verify user has permission to view this POA
+    await this.poaService.findOne(id, userId, false);
+    return this.poaService.getDocumentDownloadUrl(id, documentId);
+  }
+
+  @Delete(':id/documents/:documentId')
+  @ApiOperation({
+    summary: 'Eliminar documento del POA',
+    description: 'Elimina un documento adjunto del POA (solo si es el dueño y el POA está en borrador).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiParam({
+    name: 'documentId',
+    description: 'ID del documento',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Documento eliminado exitosamente',
+  })
+  async deleteDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    // First verify user has permission to modify this POA
+    const poa = await this.poaService.findOne(id, userId, false);
+
+    // Only allow deleting documents if POA is in draft status
+    if (poa.status !== 'draft') {
+      throw new Error('Solo se pueden eliminar documentos de POAs en borrador');
+    }
+
+    await this.poaService.deleteDocument(id, documentId);
+    return { message: 'Documento eliminado exitosamente' };
   }
 }
