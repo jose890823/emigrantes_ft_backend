@@ -4,15 +4,19 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { POA, POAStatus } from './entities/poa.entity';
+import * as fs from 'fs';
+import * as path from 'path';
+import { POA, POAStatus, POAType } from './entities/poa.entity';
 import { POAHistory } from './entities/poa-history.entity';
 import {
   POAExecution,
   POAExecutionStatus,
 } from './entities/poa-execution.entity';
+import { POADocument } from './entities/poa-document.entity';
 import { EncryptionService } from '../../shared/encryption.service';
 import { CreatePoaDto } from './dto/create-poa.dto';
 import { UpdatePoaDto } from './dto/update-poa.dto';
@@ -23,6 +27,7 @@ import { RejectPoaDto } from './dto/reject-poa.dto';
 import { NotarizePoaDto } from './dto/notarize-poa.dto';
 import { ActivatePoaDto } from './dto/activate-poa.dto';
 import { ExecuteInstructionDto } from './dto/execute-instruction.dto';
+import { UploadDocumentDto } from './dto/upload-document.dto';
 
 @Injectable()
 export class PoaService {
@@ -35,6 +40,8 @@ export class PoaService {
     private historyRepository: Repository<POAHistory>,
     @InjectRepository(POAExecution)
     private executionRepository: Repository<POAExecution>,
+    @InjectRepository(POADocument)
+    private documentRepository: Repository<POADocument>,
     private encryptionService: EncryptionService,
   ) {}
 
@@ -49,14 +56,29 @@ export class PoaService {
   async create(clientId: string, createPoaDto: CreatePoaDto): Promise<POA> {
     this.logger.log(`Creating new POA for client ${clientId}`);
 
-    // Encrypt sensitive data
-    const encryptedInstructions = createPoaDto.instructions
-      ? this.encryptionService.encryptObject(createPoaDto.instructions)
-      : null;
+    // Helper function to check if object/array has real data
+    const hasData = (value: any): boolean => {
+      if (!value) return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') {
+        return Object.values(value).some((v) => {
+          if (Array.isArray(v)) return v.length > 0;
+          return v != null && v !== '';
+        });
+      }
+      return true;
+    };
 
-    const encryptedBeneficiaries = createPoaDto.beneficiaries
-      ? this.encryptionService.encryptObject(createPoaDto.beneficiaries)
-      : null;
+    // Encrypt sensitive data only if they contain real data
+    const encryptedInstructions =
+      createPoaDto.instructions && hasData(createPoaDto.instructions)
+        ? this.encryptionService.encryptObject(createPoaDto.instructions)
+        : null;
+
+    const encryptedBeneficiaries =
+      createPoaDto.beneficiaries && hasData(createPoaDto.beneficiaries)
+        ? this.encryptionService.encryptObject(createPoaDto.beneficiaries)
+        : null;
 
     const encryptedIdentification = this.encryptionService.encrypt(
       createPoaDto.clientIdentification,
@@ -154,16 +176,31 @@ export class PoaService {
       );
     }
 
-    if (updatePoaDto.instructions) {
-      poa.instructions = this.encryptionService.encryptObject(
-        updatePoaDto.instructions,
-      );
+    // Helper function to check if object/array has real data
+    const hasData = (value: any): boolean => {
+      if (!value) return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') {
+        return Object.values(value).some((v) => {
+          if (Array.isArray(v)) return v.length > 0;
+          return v != null && v !== '';
+        });
+      }
+      return true;
+    };
+
+    if (updatePoaDto.instructions !== undefined) {
+      poa.instructions =
+        updatePoaDto.instructions && hasData(updatePoaDto.instructions)
+          ? this.encryptionService.encryptObject(updatePoaDto.instructions)
+          : null;
     }
 
-    if (updatePoaDto.beneficiaries) {
-      poa.beneficiaries = this.encryptionService.encryptObject(
-        updatePoaDto.beneficiaries,
-      );
+    if (updatePoaDto.beneficiaries !== undefined) {
+      poa.beneficiaries =
+        updatePoaDto.beneficiaries && hasData(updatePoaDto.beneficiaries)
+          ? this.encryptionService.encryptObject(updatePoaDto.beneficiaries)
+          : null;
     }
 
     if (updatePoaDto.activationTriggers) {
@@ -363,12 +400,16 @@ export class PoaService {
       throw new NotFoundException(`POA con ID ${id} no encontrado`);
     }
 
-    if (poa.status !== POAStatus.IN_REVIEW) {
+    if (
+      poa.status !== POAStatus.IN_REVIEW &&
+      poa.status !== POAStatus.PENDING
+    ) {
       throw new BadRequestException(
-        'Solo se pueden aprobar POAs en estado de revisión',
+        'Solo se pueden aprobar POAs en estado pendiente o en revisión',
       );
     }
 
+    const previousStatus = poa.status;
     poa.status = POAStatus.APPROVED;
     poa.approvedAt = new Date();
 
@@ -382,7 +423,7 @@ export class PoaService {
     await this.createHistoryRecord(
       poa.id,
       adminId,
-      POAStatus.IN_REVIEW,
+      previousStatus,
       POAStatus.APPROVED,
       'approved',
       'POA aprobado por el administrador',
@@ -406,12 +447,16 @@ export class PoaService {
       throw new NotFoundException(`POA con ID ${id} no encontrado`);
     }
 
-    if (poa.status !== POAStatus.IN_REVIEW) {
+    if (
+      poa.status !== POAStatus.IN_REVIEW &&
+      poa.status !== POAStatus.PENDING
+    ) {
       throw new BadRequestException(
-        'Solo se pueden rechazar POAs en estado de revisión',
+        'Solo se pueden rechazar POAs en estado pendiente o en revisión',
       );
     }
 
+    const previousStatus = poa.status;
     poa.status = POAStatus.REJECTED;
     poa.rejectionReason = rejectDto.rejectionReason;
 
@@ -425,7 +470,7 @@ export class PoaService {
     await this.createHistoryRecord(
       poa.id,
       adminId,
-      POAStatus.IN_REVIEW,
+      previousStatus,
       POAStatus.REJECTED,
       'rejected',
       `POA rechazado: ${rejectDto.rejectionReason}`,
@@ -629,31 +674,216 @@ export class PoaService {
    */
   private decryptPoaData(poa: POA): POA {
     try {
+      // Decrypt client identification
       if (poa.clientIdentification) {
-        poa.clientIdentification = this.encryptionService.decrypt(
-          poa.clientIdentification,
-        );
+        try {
+          poa.clientIdentification = this.encryptionService.decrypt(
+            poa.clientIdentification,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to decrypt clientIdentification for POA ${poa.id}, keeping original value`,
+          );
+        }
       }
 
+      // Decrypt instructions
       if (poa.instructions) {
-        const decrypted = this.encryptionService.decryptObject(
-          poa.instructions,
-        );
-        poa.instructions = JSON.stringify(decrypted);
+        try {
+          const decrypted = this.encryptionService.decryptObject(
+            poa.instructions,
+          );
+          // Return as object, not as JSON string
+          (poa as any).instructions = decrypted;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to decrypt instructions for POA ${poa.id}, setting to null`,
+          );
+          (poa as any).instructions = null;
+        }
       }
 
+      // Decrypt beneficiaries
       if (poa.beneficiaries) {
-        const decrypted = this.encryptionService.decryptObject(
-          poa.beneficiaries,
-        );
-        poa.beneficiaries = JSON.stringify(decrypted);
+        try {
+          const decrypted = this.encryptionService.decryptObject(
+            poa.beneficiaries,
+          );
+          // Return as object, not as JSON string
+          (poa as any).beneficiaries = decrypted;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to decrypt beneficiaries for POA ${poa.id}, setting to null`,
+          );
+          (poa as any).beneficiaries = null;
+        }
       }
 
       return poa;
     } catch (error) {
       this.logger.error('Error decrypting POA data', error.stack);
-      throw new BadRequestException('Error al descifrar datos del POA');
+      // If there's a general error, log it but don't fail completely
+      this.logger.warn(`POA ${poa.id} may have corrupted data`);
+      return poa;
     }
+  }
+
+  // ============================================
+  // DOCUMENT METHODS
+  // ============================================
+
+  /**
+   * Get all documents for a POA
+   */
+  async getDocuments(poaId: string): Promise<POADocument[]> {
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    return await this.documentRepository.find({
+      where: { poaId },
+      order: { uploadedAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Upload a document for a POA
+   */
+  async uploadDocument(
+    poaId: string,
+    uploadDto: UploadDocumentDto,
+  ): Promise<POADocument> {
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    try {
+      // Parse base64 data
+      const matches = uploadDto.fileBase64.match(
+        /^data:(.+);base64,(.+)$/,
+      );
+      if (!matches || matches.length !== 3) {
+        throw new BadRequestException(
+          'Formato de archivo base64 inválido',
+        );
+      }
+
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Create upload directory if it doesn't exist
+      const uploadDir = path.join(process.cwd(), 'uploads', 'poa-documents', poaId);
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const ext = path.extname(uploadDto.fileName);
+      const baseName = path.basename(uploadDto.fileName, ext);
+      const fileName = `${timestamp}-${baseName}${ext}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      // Save file
+      fs.writeFileSync(filePath, buffer);
+
+      // Create database record
+      const document = this.documentRepository.create({
+        poaId,
+        type: uploadDto.type,
+        fileName: uploadDto.fileName,
+        fileUrl: `/uploads/poa-documents/${poaId}/${fileName}`,
+        fileSize: buffer.length,
+        mimeType,
+        reviewNotes: uploadDto.description || null,
+      });
+
+      const saved = await this.documentRepository.save(document);
+      this.logger.log(`Document uploaded for POA ${poaId}: ${fileName}`);
+
+      return saved;
+    } catch (error) {
+      this.logger.error('Error uploading document', error.stack);
+      throw new BadRequestException('Error al subir el documento');
+    }
+  }
+
+  /**
+   * Delete a document
+   */
+  async deleteDocument(poaId: string, documentId: string): Promise<void> {
+    const document = await this.documentRepository.findOne({
+      where: { id: documentId, poaId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+
+    try {
+      // Delete physical file
+      const filePath = path.join(process.cwd(), document.fileUrl.replace(/^\//, ''));
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      // Delete database record
+      await this.documentRepository.remove(document);
+      this.logger.log(`Document deleted: ${documentId}`);
+    } catch (error) {
+      this.logger.error('Error deleting document', error.stack);
+      throw new BadRequestException('Error al eliminar el documento');
+    }
+  }
+
+  /**
+   * Get document file path for download
+   */
+  async getDocumentPath(poaId: string, documentId: string): Promise<string> {
+    const document = await this.documentRepository.findOne({
+      where: { id: documentId, poaId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+
+    const filePath = path.join(process.cwd(), document.fileUrl.replace(/^\//, ''));
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('Archivo físico no encontrado');
+    }
+
+    return filePath;
+  }
+
+  /**
+   * Get document download URL
+   */
+  async getDocumentDownloadUrl(
+    poaId: string,
+    documentId: string,
+  ): Promise<{ url: string; fileName: string; mimeType: string }> {
+    const document = await this.documentRepository.findOne({
+      where: { id: documentId, poaId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+
+    const filePath = path.join(process.cwd(), document.fileUrl.replace(/^\//, ''));
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('Archivo físico no encontrado');
+    }
+
+    return {
+      url: document.fileUrl,
+      fileName: document.fileName,
+      mimeType: document.mimeType,
+    };
   }
 
   /**
@@ -674,17 +904,98 @@ export class PoaService {
       throw new BadRequestException('La identificación es obligatoria');
     }
 
-    if (!poa.instructions) {
-      throw new BadRequestException('Las instrucciones son obligatorias');
-    }
-
-    if (!poa.beneficiaries) {
-      throw new BadRequestException('Los beneficiarios son obligatorios');
-    }
+    // Instructions and beneficiaries are optional - they can be added later
+    // The client may want to submit the POA first and add details during the review process
 
     if (!poa.activationTriggers || poa.activationTriggers.length === 0) {
       throw new BadRequestException(
-        'Los triggers de activación son obligatorios',
+        'Debe seleccionar al menos un evento de activación',
+      );
+    }
+  }
+
+  /**
+   * Get POA statistics
+   */
+  async getStats() {
+    this.logger.log('Fetching POA statistics');
+
+    try {
+      // Get total count
+      const total = await this.poaRepository.count();
+
+      // Count by status
+      const byStatus = {};
+      for (const status of Object.values(POAStatus)) {
+        byStatus[status] = await this.poaRepository.count({
+          where: { status },
+        });
+      }
+
+      // Count by type
+      const byType = {};
+      for (const type of Object.values(POAType)) {
+        byType[type] = await this.poaRepository.count({
+          where: { type },
+        });
+      }
+
+      // Specific status counts
+      const pendingReview =
+        (byStatus[POAStatus.PENDING] || 0) +
+        (byStatus[POAStatus.IN_REVIEW] || 0);
+      const approved = byStatus[POAStatus.APPROVED] || 0;
+      const active =
+        (byStatus[POAStatus.ACTIVATED] || 0) +
+        (byStatus[POAStatus.EXECUTED] || 0);
+      const rejected = byStatus[POAStatus.REJECTED] || 0;
+      const completed = byStatus[POAStatus.COMPLETED] || 0;
+
+      // Get recent activity from history
+      const recentActivity = await this.historyRepository.find({
+        order: { createdAt: 'DESC' },
+        take: 10,
+        relations: ['changedByUser'],
+      });
+
+      // Calculate average processing time (from creation to approval)
+      const approvedPoas = await this.poaRepository.find({
+        where: { status: POAStatus.APPROVED },
+        select: ['createdAt', 'approvedAt'],
+      });
+
+      let averageProcessingTime: number | null = null;
+      if (approvedPoas.length > 0) {
+        const totalDays = approvedPoas.reduce((sum, poa) => {
+          if (poa.approvedAt) {
+            const days = Math.floor(
+              (new Date(poa.approvedAt).getTime() -
+                new Date(poa.createdAt).getTime()) /
+                (1000 * 60 * 60 * 24),
+            );
+            return sum + days;
+          }
+          return sum;
+        }, 0);
+        averageProcessingTime = Math.round(totalDays / approvedPoas.length);
+      }
+
+      return {
+        total,
+        byStatus,
+        byType,
+        pendingReview,
+        approved,
+        active,
+        rejected,
+        completed,
+        averageProcessingTime,
+        recentActivity,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching POA statistics', error.stack);
+      throw new InternalServerErrorException(
+        'Error al obtener estadísticas de POA',
       );
     }
   }

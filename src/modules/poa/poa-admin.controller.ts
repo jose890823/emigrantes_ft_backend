@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -62,6 +63,19 @@ export class PoaAdminController {
   })
   async findAll(@Query('status') status?: POAStatus) {
     return this.poaService.findAll(status);
+  }
+
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Obtener estadísticas generales de POAs',
+    description: 'Obtiene estadísticas y métricas generales del sistema de POA',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estadísticas generales',
+  })
+  async getStats() {
+    return this.poaService.getStats();
   }
 
   @Get(':id')
@@ -149,7 +163,7 @@ export class PoaAdminController {
   @ApiOperation({
     summary: 'Aprobar POA',
     description:
-      'Aprueba un POA que está en revisión (in_review → approved). El cliente será notificado.',
+      'Aprueba un POA que está pendiente o en revisión (pending/in_review → approved). El cliente será notificado.',
   })
   @ApiParam({
     name: 'id',
@@ -163,7 +177,7 @@ export class PoaAdminController {
   })
   @ApiResponse({
     status: 400,
-    description: 'POA no está en estado de revisión',
+    description: 'POA no está en estado pendiente o en revisión',
   })
   async approve(
     @Param('id', ParseUUIDPipe) id: string,
@@ -177,7 +191,7 @@ export class PoaAdminController {
   @ApiOperation({
     summary: 'Rechazar POA',
     description:
-      'Rechaza un POA que está en revisión (in_review → rejected). Debe incluir razón del rechazo.',
+      'Rechaza un POA que está pendiente o en revisión (pending/in_review → rejected). Debe incluir razón del rechazo.',
   })
   @ApiParam({
     name: 'id',
@@ -355,5 +369,75 @@ export class PoaAdminController {
       generatedAt: new Date().toISOString(),
       generatedBy: adminId,
     };
+  }
+
+  // ============================================
+  // DOCUMENT ENDPOINTS
+  // ============================================
+
+  @Get(':id/documents')
+  @ApiOperation({
+    summary: 'Listar documentos del POA (Admin)',
+    description: 'Obtiene todos los documentos adjuntos a un POA.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de documentos',
+  })
+  async getDocuments(@Param('id', ParseUUIDPipe) id: string) {
+    return this.poaService.getDocuments(id);
+  }
+
+  @Post(':id/documents')
+  @ApiOperation({
+    summary: 'Subir documento al POA (Admin)',
+    description: 'Sube un nuevo documento adjunto al POA.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Documento subido exitosamente',
+  })
+  async uploadDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() uploadDto: any,
+  ) {
+    return this.poaService.uploadDocument(id, uploadDto);
+  }
+
+  @Delete(':id/documents/:documentId')
+  @ApiOperation({
+    summary: 'Eliminar documento del POA (Admin)',
+    description: 'Elimina un documento adjunto del POA.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiParam({
+    name: 'documentId',
+    description: 'ID del documento',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Documento eliminado exitosamente',
+  })
+  async deleteDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+  ) {
+    await this.poaService.deleteDocument(id, documentId);
+    return { message: 'Documento eliminado exitosamente' };
   }
 }
