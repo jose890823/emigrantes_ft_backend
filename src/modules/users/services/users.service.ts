@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
@@ -325,8 +326,20 @@ export class UsersService {
   async updateUserAdmin(
     userId: string,
     updateDto: UpdateUserAdminDto,
+    currentUser: User,
   ): Promise<User> {
     const user = await this.findById(userId);
+
+    // Only super admins can change verification status
+    const isChangingVerification =
+      updateDto.emailVerified !== undefined ||
+      updateDto.phoneVerified !== undefined;
+
+    if (isChangingVerification && currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Only super admins can change email or phone verification status',
+      );
+    }
 
     // Check email uniqueness if changing email
     if (updateDto.email && updateDto.email !== user.email) {
@@ -339,8 +352,10 @@ export class UsersService {
       }
 
       user.email = updateDto.email;
-      // If email changed, mark as unverified
-      user.emailVerified = updateDto.emailVerified ?? false;
+      // Only auto-unverify if emailVerified wasn't explicitly provided
+      if (updateDto.emailVerified === undefined) {
+        user.emailVerified = false;
+      }
     }
 
     // Update basic fields
@@ -350,14 +365,17 @@ export class UsersService {
     // Update phone
     if (updateDto.phone && updateDto.phone !== user.phone) {
       user.phone = updateDto.phone;
-      user.phoneVerified = updateDto.phoneVerified ?? false;
+      // Only auto-unverify if phoneVerified wasn't explicitly provided
+      if (updateDto.phoneVerified === undefined) {
+        user.phoneVerified = false;
+      }
     }
 
-    // Update verification status (if explicitly provided)
-    if (updateDto.emailVerified !== undefined && updateDto.email === undefined) {
+    // Update verification status (admin can always change these)
+    if (updateDto.emailVerified !== undefined) {
       user.emailVerified = updateDto.emailVerified;
     }
-    if (updateDto.phoneVerified !== undefined && updateDto.phone === undefined) {
+    if (updateDto.phoneVerified !== undefined) {
       user.phoneVerified = updateDto.phoneVerified;
     }
 

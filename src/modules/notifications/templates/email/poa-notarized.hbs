@@ -1,0 +1,33 @@
+<h2>📜 Tu POA ha sido Notarizado</h2>
+
+<p>Hola <strong>{{clientName}}</strong>,</p>
+
+<p>¡Excelente noticia! Tu Power of Attorney ha sido notarizado exitosamente y ahora tiene validez legal completa.</p>
+
+<div class="info-box alert-success">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize poaType}}</li>
+    <li><strong>Fecha de notarización:</strong> {{formatDate notarizedAt}}</li>
+    {{#if notarizedBy}}
+    <li><strong>Notarizado por:</strong> {{notarizedBy}}</li>
+    {{/if}}
+  </ul>
+</div>
+
+<h3>Tu POA ahora está:</h3>
+<ul>
+  <li>✓ <strong>Notarizado legalmente</strong></li>
+  <li>✓ <strong>Listo para ser ejecutado</strong></li>
+  <li>✓ <strong>Con validez legal completa</strong></li>
+</ul>
+
+<p>El documento notarizado está disponible para su descarga en tu panel de control.</p>
+
+<p class="text-center">
+  <a href="{{dashboardUrl}}" class="button">Descargar POA Notarizado</a>
+</p>
+
+<p>Saludos cordiales,<br><strong>Equipo Emigrantes FT</strong></p>

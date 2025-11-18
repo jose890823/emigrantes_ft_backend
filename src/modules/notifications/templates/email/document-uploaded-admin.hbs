@@ -1,0 +1,38 @@
+<h2>📎 Nuevo Documento Subido - Requiere Revisión</h2>
+
+<p>Hola <strong>{{managerName}}</strong>,</p>
+
+<p>El cliente <strong>{{clientName}}</strong> ha subido un nuevo documento al POA asignado a ti.</p>
+
+<div class="info-box alert-info">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Cliente:</strong> {{clientName}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+  </ul>
+</div>
+
+<div class="info-box alert-warning">
+  <h3>Documento Subido:</h3>
+  <ul>
+    <li><strong>Nombre:</strong> {{documentName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize documentType}}</li>
+    <li><strong>Tamaño:</strong> {{documentSize}}</li>
+    <li><strong>Fecha de subida:</strong> {{formatDate uploadedAt}}</li>
+  </ul>
+</div>
+
+<h3>Acción requerida:</h3>
+<p>Por favor, revisa el documento y:</p>
+<ol>
+  <li>Verifica que el documento sea legible y válido</li>
+  <li>Confirma que corresponda al tipo de documento requerido</li>
+  <li>Aprueba o rechaza el documento con observaciones</li>
+</ol>
+
+<p class="text-center">
+  <a href="{{adminDocumentUrl}}" class="button">Revisar Documento</a>
+</p>
+
+<p>Saludos cordiales,<br><strong>Sistema Emigrantes FT</strong></p>

@@ -1,0 +1,38 @@
+<h2>📋 Nuevo POA Creado - Requiere Asignación</h2>
+
+<p>Hola <strong>Equipo Admin</strong>,</p>
+
+<p>Se ha creado un nuevo Power of Attorney que requiere asignación a un gestor.</p>
+
+<div class="info-box alert-warning">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Cliente:</strong> {{clientName}} ({{clientEmail}})</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize poaType}}</li>
+    <li><strong>Estado:</strong> {{poaStatus}}</li>
+    <li><strong>Fecha de creación:</strong> {{formatDate createdAt}}</li>
+  </ul>
+</div>
+
+{{#if poaDescription}}
+<div class="info-box">
+  <h3>Descripción:</h3>
+  <p>{{poaDescription}}</p>
+</div>
+{{/if}}
+
+<h3>Acción requerida:</h3>
+<p>Este POA necesita ser asignado a un gestor para su procesamiento. Por favor:</p>
+<ol>
+  <li>Revisa los detalles del POA</li>
+  <li>Asigna un gestor apropiado según la carga de trabajo</li>
+  <li>Verifica que toda la información esté completa</li>
+</ol>
+
+<p class="text-center">
+  <a href="{{adminPoaUrl}}" class="button">Revisar y Asignar POA</a>
+</p>
+
+<p>Saludos cordiales,<br><strong>Sistema Emigrantes FT</strong></p>

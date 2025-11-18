@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{subject}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .email-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .email-header h1 {
+      font-size: 24px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .email-header .company-name {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 5px;
+    }
+
+    .email-content {
+      padding: 30px 20px;
+    }
+
+    .email-content h2 {
+      color: #667eea;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+
+    .email-content h3 {
+      color: #555;
+      font-size: 16px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    .email-content p {
+      margin-bottom: 15px;
+      color: #555;
+    }
+
+    .email-content ul,
+    .email-content ol {
+      margin-left: 20px;
+      margin-bottom: 15px;
+      color: #555;
+    }
+
+    .email-content li {
+      margin-bottom: 8px;
+    }
+
+    .info-box {
+      background-color: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+
+    .info-box strong {
+      color: #333;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 20px 0;
+      transition: transform 0.2s;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      border-left-color: #28a745;
+      color: #155724;
+    }
+
+    .alert-warning {
+      background-color: #fff3cd;
+      border-left-color: #ffc107;
+      color: #856404;
+    }
+
+    .alert-danger {
+      background-color: #f8d7da;
+      border-left-color: #dc3545;
+      color: #721c24;
+    }
+
+    .alert-info {
+      background-color: #d1ecf1;
+      border-left-color: #17a2b8;
+      color: #0c5460;
+    }
+
+    .email-footer {
+      background-color: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .email-footer p {
+      margin: 5px 0;
+      font-size: 14px;
+      color: #6c757d;
+    }
+
+    .email-footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .divider {
+      height: 1px;
+      background-color: #dee2e6;
+      margin: 20px 0;
+    }
+
+    @media only screen and (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .email-content {
+        padding: 20px 15px;
+      }
+
+      .button {
+        display: block;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- Header -->
+    <div class="email-header">
+      <h1>Emigrantes FT</h1>
+      <div class="company-name">Power of Attorney Services</div>
+    </div>
+
+    <!-- Content -->
+    <div class="email-content">
+      {{{content}}}
+    </div>
+
+    <!-- Footer -->
+    <div class="email-footer">
+      <p><strong>Emigrantes FT LLC</strong></p>
+      <p>531 Palmetto Dr, Miami Springs, FL 33166</p>
+      <p>Teléfono: <a href="tel:+17868391882">+1 (786) 839-1882</a></p>
+      <p>Email: <a href="mailto:emigrantesftllc@gmail.com">emigrantesftllc@gmail.com</a></p>
+      <div class="divider"></div>
+      <p style="font-size: 12px; color: #999;">
+        © {{year}} Emigrantes FT LLC. Todos los derechos reservados.
+      </p>
+      <p style="font-size: 12px; color: #999;">
+        Este es un correo automático, por favor no responder directamente.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<h2>✅ Documento Aprobado</h2>
+
+<p>Hola <strong>{{clientName}}</strong>,</p>
+
+<p>¡Buenas noticias! El documento que subiste a tu POA ha sido aprobado por nuestro equipo.</p>
+
+<div class="info-box alert-info">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+  </ul>
+</div>
+
+<div class="info-box alert-success">
+  <h3>Documento Aprobado:</h3>
+  <ul>
+    <li><strong>Nombre:</strong> {{documentName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize documentType}}</li>
+    <li><strong>Fecha de aprobación:</strong> {{formatDate approvedAt}}</li>
+    {{#if approvedBy}}
+    <li><strong>Aprobado por:</strong> {{approvedBy}}</li>
+    {{/if}}
+    {{#if approvalNotes}}
+    <li><strong>Notas:</strong> {{approvalNotes}}</li>
+    {{/if}}
+  </ul>
+</div>
+
+<p>El documento ha sido verificado y cumple con todos los requisitos necesarios. Ya forma parte oficial de tu expediente.</p>
+
+<p class="text-center">
+  <a href="{{dashboardUrl}}" class="button">Ver Documento</a>
+</p>
+
+<p>Saludos cordiales,<br><strong>Equipo Emigrantes FT</strong></p>

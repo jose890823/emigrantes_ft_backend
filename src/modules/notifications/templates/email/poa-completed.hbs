@@ -1,0 +1,44 @@
+<h2>🎊 Tu POA ha sido Completado</h2>
+
+<p>Hola <strong>{{clientName}}</strong>,</p>
+
+<p>¡Felicidades! Tu Power of Attorney ha sido completado exitosamente. Todas las instrucciones han sido ejecutadas satisfactoriamente.</p>
+
+<div class="info-box alert-success">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize poaType}}</li>
+    <li><strong>Fecha de inicio:</strong> {{formatDate createdAt}}</li>
+    <li><strong>Fecha de finalización:</strong> {{formatDate completedAt}}</li>
+  </ul>
+</div>
+
+<h3>Resumen del proceso:</h3>
+<ul>
+  <li>✓ POA creado y enviado</li>
+  <li>✓ Revisado y aprobado</li>
+  <li>✓ Notarizado legalmente</li>
+  <li>✓ Activado y ejecutado</li>
+  <li>✓ <strong>Completado exitosamente</strong></li>
+</ul>
+
+<div class="info-box">
+  <h3>Documentación final:</h3>
+  <p>Toda la documentación relacionada con tu POA, incluyendo:</p>
+  <ul>
+    <li>POA notarizado original</li>
+    <li>Constancias de ejecución</li>
+    <li>Documentos de soporte</li>
+  </ul>
+  <p>Estará disponible para descarga en tu panel de control durante los próximos <strong>12 meses</strong>.</p>
+</div>
+
+<p class="text-center">
+  <a href="{{dashboardUrl}}" class="button">Ver Documentación Final</a>
+</p>
+
+<p>Gracias por confiar en Emigrantes FT para la gestión de tu Power of Attorney. Ha sido un placer servirte.</p>
+
+<p>Saludos cordiales,<br><strong>Equipo Emigrantes FT</strong></p>

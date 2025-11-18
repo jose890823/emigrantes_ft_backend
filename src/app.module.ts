@@ -1,5 +1,6 @@
 import { Module, Logger, Global } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ModuleLoaderService } from './shared/module-loader.service';
@@ -33,6 +34,16 @@ if (existsSync(emailModulePath + '.ts') || existsSync(emailModulePath + '.js')) 
 @Module({
   imports: [
     DatabaseModule,
+    // Event Emitter for async notifications
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 10,
+      verboseMemoryLeak: false,
+      ignoreErrors: false,
+    }),
     AuthModule,
     PoaModule,
     NotificationsModule,

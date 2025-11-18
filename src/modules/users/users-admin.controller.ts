@@ -125,7 +125,7 @@ export class UsersAdminController {
   @ApiOperation({
     summary: 'Update user (Admin)',
     description:
-      'Update any field of a user. Admins can modify profile, role, verification status, etc.',
+      'Update any field of a user. Admins can modify profile, role, verification status, etc. Only super admins can change email/phone verification status.',
   })
   @ApiParam({
     name: 'id',
@@ -146,14 +146,19 @@ export class UsersAdminController {
     description: 'Cannot perform this action (e.g., demoting last super admin)',
   })
   @ApiResponse({
+    status: 403,
+    description: 'Only super admins can change verification status',
+  })
+  @ApiResponse({
     status: 409,
     description: 'Email already in use',
   })
   async updateUser(
+    @CurrentUser() currentUser: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateUserAdminDto,
   ) {
-    return this.usersService.updateUserAdmin(id, updateDto);
+    return this.usersService.updateUserAdmin(id, updateDto, currentUser);
   }
 
   // ============================================

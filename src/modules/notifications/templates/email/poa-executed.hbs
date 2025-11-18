@@ -1,0 +1,38 @@
+<h2>✅ Instrucción Ejecutada de tu POA</h2>
+
+<p>Hola <strong>{{clientName}}</strong>,</p>
+
+<p>Hemos ejecutado exitosamente una de las instrucciones autorizadas en tu Power of Attorney.</p>
+
+<div class="info-box alert-info">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize poaType}}</li>
+  </ul>
+</div>
+
+<div class="info-box alert-success">
+  <h3>Instrucción Ejecutada:</h3>
+  <p><strong>{{instructionDescription}}</strong></p>
+  <ul>
+    <li><strong>Fecha de ejecución:</strong> {{formatDate executedAt}}</li>
+    {{#if executedBy}}
+    <li><strong>Ejecutado por:</strong> {{executedBy}}</li>
+    {{/if}}
+    {{#if executionNotes}}
+    <li><strong>Notas:</strong> {{executionNotes}}</li>
+    {{/if}}
+  </ul>
+</div>
+
+<p>Puedes revisar los detalles completos de la ejecución y cualquier documentación asociada en tu panel de control.</p>
+
+<p class="text-center">
+  <a href="{{dashboardUrl}}" class="button">Ver Detalles de Ejecución</a>
+</p>
+
+<p>Si tienes alguna pregunta sobre esta ejecución, no dudes en contactarnos.</p>
+
+<p>Saludos cordiales,<br><strong>Equipo Emigrantes FT</strong></p>

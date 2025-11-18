@@ -1,0 +1,34 @@
+<h2>📎 Documento Subido a tu POA</h2>
+
+<p>Hola <strong>{{clientName}}</strong>,</p>
+
+<p>Se ha subido un nuevo documento a tu Power of Attorney.</p>
+
+<div class="info-box alert-info">
+  <h3>Detalles del POA:</h3>
+  <ul>
+    <li><strong>ID:</strong> #{{poaId}}</li>
+    <li><strong>Solicitante:</strong> {{applicantName}}</li>
+  </ul>
+</div>
+
+<div class="info-box">
+  <h3>Documento Subido:</h3>
+  <ul>
+    <li><strong>Nombre:</strong> {{documentName}}</li>
+    <li><strong>Tipo:</strong> {{capitalize documentType}}</li>
+    <li><strong>Tamaño:</strong> {{documentSize}}</li>
+    <li><strong>Fecha de subida:</strong> {{formatDate uploadedAt}}</li>
+    {{#if uploadedBy}}
+    <li><strong>Subido por:</strong> {{uploadedBy}}</li>
+    {{/if}}
+  </ul>
+</div>
+
+<p>El documento está ahora en proceso de revisión por nuestro equipo. Te notificaremos cuando sea aprobado o si requiere alguna corrección.</p>
+
+<p class="text-center">
+  <a href="{{dashboardUrl}}" class="button">Ver Documento</a>
+</p>
+
+<p>Saludos cordiales,<br><strong>Equipo Emigrantes FT</strong></p>

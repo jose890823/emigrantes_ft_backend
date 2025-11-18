@@ -13,6 +13,8 @@ import { User } from '../auth/entities/user.entity';
 import { NotificationsService } from './services/notifications.service';
 import { NotificationTemplateService } from './services/notification-template.service';
 import { NotificationQueueService } from './services/notification-queue.service';
+import { TemplateRendererService } from './services/template-renderer.service';
+import { NotificationSenderService } from './services/notification-sender.service';
 
 // Channel Services
 import { EmailChannelService } from './services/channels/email-channel.service';
@@ -25,8 +27,17 @@ import { InAppChannelService } from './services/channels/in-app-channel.service'
 import { NotificationsController } from './notifications.controller';
 import { NotificationsAdminController } from './notifications-admin.controller';
 
+// Listeners
+import { PoaEventListener } from './listeners/poa-event.listener';
+
+// Email Module
+import { EmailModule } from '../email/email.module';
+
 @Module({
   imports: [
+    // Email service
+    EmailModule,
+
     // TypeORM entities
     TypeOrmModule.forFeature([
       Notification,
@@ -67,6 +78,8 @@ import { NotificationsAdminController } from './notifications-admin.controller';
     NotificationsService,
     NotificationTemplateService,
     NotificationQueueService,
+    TemplateRendererService,
+    NotificationSenderService,
 
     // Channel Services
     EmailChannelService,
@@ -74,11 +87,15 @@ import { NotificationsAdminController } from './notifications-admin.controller';
     WhatsAppChannelService,
     PushChannelService,
     InAppChannelService,
+
+    // Event Listeners
+    PoaEventListener,
   ],
 
   exports: [
     NotificationsService,
     NotificationTemplateService,
+    NotificationSenderService,
     // Export channel services so other modules can send notifications directly
     EmailChannelService,
     SmsChannelService,
