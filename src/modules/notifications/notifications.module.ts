@@ -26,6 +26,7 @@ import { InAppChannelService } from './services/channels/in-app-channel.service'
 // Controllers
 import { NotificationsController } from './notifications.controller';
 import { NotificationsAdminController } from './notifications-admin.controller';
+import { NotificationsTestController } from './controllers/notifications-test.controller';
 
 // Listeners
 import { PoaEventListener } from './listeners/poa-event.listener';
@@ -71,7 +72,11 @@ import { EmailModule } from '../email/email.module';
     }),
   ],
 
-  controllers: [NotificationsController, NotificationsAdminController],
+  controllers: [
+    NotificationsController,
+    NotificationsAdminController,
+    NotificationsTestController,
+  ],
 
   providers: [
     // Main Services
