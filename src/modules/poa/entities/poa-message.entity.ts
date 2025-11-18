@@ -9,18 +9,12 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { POA } from './poa.entity';
+import { POAThread } from './poa-thread.entity';
 import { User } from '../../auth/entities/user.entity';
 
 export enum MessageSenderType {
   ADMIN = 'admin',
   CLIENT = 'client',
-}
-
-export enum MessageType {
-  REQUEST_DOCUMENT = 'request_document',
-  GENERAL = 'general',
-  STATUS_UPDATE = 'status_update',
-  QUESTION = 'question',
 }
 
 @Entity('poa_messages')
@@ -37,7 +31,19 @@ export class POAMessage {
   // ============================================
 
   @ApiProperty({
-    description: 'ID del POA relacionado',
+    description: 'ID del hilo (thread) al que pertenece',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+    nullable: true,
+  })
+  @Column({ type: 'uuid', nullable: true })
+  threadId: string | null;
+
+  @ManyToOne(() => POAThread, (thread) => thread.messages, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'threadId' })
+  thread: POAThread | null;
+
+  @ApiProperty({
+    description: 'ID del POA relacionado (denormalizado para queries rápidas)',
     example: '550e8400-e29b-41d4-a716-446655440001',
   })
   @Column({ type: 'uuid' })
@@ -72,25 +78,6 @@ export class POAMessage {
     enum: MessageSenderType,
   })
   senderType: MessageSenderType;
-
-  @ApiProperty({
-    description: 'Tipo de mensaje',
-    enum: MessageType,
-    example: MessageType.GENERAL,
-  })
-  @Column({
-    type: 'enum',
-    enum: MessageType,
-    default: MessageType.GENERAL,
-  })
-  type: MessageType;
-
-  @ApiProperty({
-    description: 'Asunto del mensaje',
-    example: 'Documentos requeridos para continuar con el proceso',
-  })
-  @Column({ type: 'varchar', length: 255 })
-  subject: string;
 
   @ApiProperty({
     description: 'Contenido del mensaje',

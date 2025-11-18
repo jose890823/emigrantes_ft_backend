@@ -31,9 +31,12 @@ import { NotarizePoaDto } from './dto/notarize-poa.dto';
 import { ActivatePoaDto } from './dto/activate-poa.dto';
 import { ExecuteInstructionDto } from './dto/execute-instruction.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateThreadDto } from './dto/create-thread.dto';
+import { CreateMessageInThreadDto } from './dto/create-message-in-thread.dto';
 import { POA, POAStatus } from './entities/poa.entity';
 import { POAExecution } from './entities/poa-execution.entity';
 import { POAMessage, MessageSenderType } from './entities/poa-message.entity';
+import { POAThread, ThreadCreatedBy } from './entities/poa-thread.entity';
 
 @ApiTags('POA - Admin')
 @Controller('poa/admin')
@@ -580,5 +583,195 @@ export class PoaAdminController {
   async getUnreadCount(@CurrentUser('id') adminId: string) {
     const count = await this.poaService.getUnreadMessageCount(adminId, true);
     return { unreadCount: count };
+  }
+
+  // ============================================
+  // THREAD ENDPOINTS
+  // ============================================
+
+  @Post(':id/threads')
+  @ApiOperation({
+    summary: 'Crear hilo de conversación',
+    description:
+      'Crea un nuevo hilo de conversación para el POA (General, Pregunta, Solicitud de Documento, etc.)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Hilo creado exitosamente',
+    type: POAThread,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'POA no encontrado',
+  })
+  async createThread(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() createThreadDto: CreateThreadDto,
+  ) {
+    return this.poaService.createThread(
+      id,
+      adminId,
+      ThreadCreatedBy.ADMIN,
+      createThreadDto,
+    );
+  }
+
+  @Get(':id/threads')
+  @ApiOperation({
+    summary: 'Listar hilos del POA',
+    description: 'Obtiene todos los hilos de conversación de un POA.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del POA',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de hilos',
+    type: [POAThread],
+  })
+  async getThreads(@Param('id', ParseUUIDPipe) id: string) {
+    return this.poaService.getThreads(id);
+  }
+
+  @Get('threads/:threadId')
+  @ApiOperation({
+    summary: 'Obtener hilo con mensajes',
+    description: 'Obtiene un hilo específico con todos sus mensajes.',
+  })
+  @ApiParam({
+    name: 'threadId',
+    description: 'ID del hilo',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hilo con mensajes',
+    type: POAThread,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Hilo no encontrado',
+  })
+  async getThread(@Param('threadId', ParseUUIDPipe) threadId: string) {
+    return this.poaService.getThreadById(threadId);
+  }
+
+  @Post('threads/:threadId/messages')
+  @ApiOperation({
+    summary: 'Enviar mensaje en hilo',
+    description: 'Agrega un nuevo mensaje a un hilo existente.',
+  })
+  @ApiParam({
+    name: 'threadId',
+    description: 'ID del hilo',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Mensaje creado exitosamente',
+    type: POAMessage,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Hilo no encontrado',
+  })
+  async createMessageInThread(
+    @Param('threadId', ParseUUIDPipe) threadId: string,
+    @CurrentUser('id') adminId: string,
+    @Body() createMessageDto: CreateMessageInThreadDto,
+  ) {
+    return this.poaService.createMessageInThread(
+      threadId,
+      adminId,
+      MessageSenderType.ADMIN,
+      createMessageDto,
+    );
+  }
+
+  @Patch('threads/:threadId/read')
+  @ApiOperation({
+    summary: 'Marcar hilo como leído',
+    description: 'Marca todos los mensajes no leídos del hilo como leídos.',
+  })
+  @ApiParam({
+    name: 'threadId',
+    description: 'ID del hilo',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mensajes marcados como leídos',
+    schema: {
+      example: { message: 'Mensajes marcados como leídos' },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Hilo no encontrado',
+  })
+  async markThreadAsRead(
+    @Param('threadId', ParseUUIDPipe) threadId: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    await this.poaService.markThreadAsRead(
+      threadId,
+      adminId,
+      MessageSenderType.ADMIN,
+    );
+    return { message: 'Mensajes marcados como leídos' };
+  }
+
+  @Patch('threads/:threadId/close')
+  @ApiOperation({
+    summary: 'Cerrar hilo',
+    description: 'Cierra un hilo de conversación.',
+  })
+  @ApiParam({
+    name: 'threadId',
+    description: 'ID del hilo',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hilo cerrado exitosamente',
+    type: POAThread,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Hilo no encontrado',
+  })
+  async closeThread(@Param('threadId', ParseUUIDPipe) threadId: string) {
+    return this.poaService.closeThread(threadId);
+  }
+
+  @Patch('threads/:threadId/reopen')
+  @ApiOperation({
+    summary: 'Reabrir hilo',
+    description: 'Reabre un hilo de conversación cerrado.',
+  })
+  @ApiParam({
+    name: 'threadId',
+    description: 'ID del hilo',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hilo reabierto exitosamente',
+    type: POAThread,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Hilo no encontrado',
+  })
+  async reopenThread(@Param('threadId', ParseUUIDPipe) threadId: string) {
+    return this.poaService.reopenThread(threadId);
   }
 }

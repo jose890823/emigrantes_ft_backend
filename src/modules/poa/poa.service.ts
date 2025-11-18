@@ -18,6 +18,7 @@ import {
 } from './entities/poa-execution.entity';
 import { POADocument } from './entities/poa-document.entity';
 import { POAMessage, MessageSenderType } from './entities/poa-message.entity';
+import { POAThread, ThreadCreatedBy } from './entities/poa-thread.entity';
 import { EncryptionService } from '../../shared/encryption.service';
 import { CreatePoaDto } from './dto/create-poa.dto';
 import { UpdatePoaDto } from './dto/update-poa.dto';
@@ -30,6 +31,8 @@ import { ActivatePoaDto } from './dto/activate-poa.dto';
 import { ExecuteInstructionDto } from './dto/execute-instruction.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateThreadDto } from './dto/create-thread.dto';
+import { CreateMessageInThreadDto } from './dto/create-message-in-thread.dto';
 
 @Injectable()
 export class PoaService {
@@ -46,6 +49,8 @@ export class PoaService {
     private documentRepository: Repository<POADocument>,
     @InjectRepository(POAMessage)
     private messageRepository: Repository<POAMessage>,
+    @InjectRepository(POAThread)
+    private threadRepository: Repository<POAThread>,
     private encryptionService: EncryptionService,
   ) {}
 
@@ -1059,11 +1064,255 @@ export class PoaService {
   }
 
   // ============================================
-  // MESSAGE METHODS
+  // THREAD METHODS
+  // ============================================
+
+  /**
+   * Create a new thread for a POA
+   */
+  async createThread(
+    poaId: string,
+    createdById: string,
+    createdByType: ThreadCreatedBy,
+    createThreadDto: CreateThreadDto,
+  ): Promise<POAThread> {
+    // Verify POA exists
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    // Create thread
+    const thread = this.threadRepository.create({
+      poaId,
+      createdById,
+      createdByType,
+      type: createThreadDto.type,
+      subject: createThreadDto.subject,
+    });
+
+    const savedThread = await this.threadRepository.save(thread);
+    this.logger.log(
+      `Thread created for POA ${poaId} by ${createdByType} ${createdById}`,
+    );
+
+    return savedThread;
+  }
+
+  /**
+   * Get all threads for a POA
+   */
+  async getThreads(poaId: string): Promise<POAThread[]> {
+    // Verify POA exists
+    const poa = await this.poaRepository.findOne({ where: { id: poaId } });
+    if (!poa) {
+      throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
+    }
+
+    const threads = await this.threadRepository.find({
+      where: { poaId },
+      relations: ['createdBy'],
+      order: {
+        lastMessageAt: { direction: 'DESC', nulls: 'LAST' },
+        createdAt: 'DESC'
+      },
+    });
+
+    this.logger.log(`[getThreads] POA ${poaId} - Found ${threads.length} threads`);
+    threads.forEach((thread, index) => {
+      this.logger.log(`[getThreads] Thread ${index + 1}: ID=${thread.id}, Subject="${thread.subject}", CreatedBy=${thread.createdByType}, Status=${thread.status}`);
+    });
+
+    return threads;
+  }
+
+  /**
+   * Get a single thread by ID with messages
+   */
+  async getThreadById(threadId: string): Promise<POAThread> {
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+      relations: ['createdBy', 'messages', 'messages.sender'],
+    });
+
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    // Sort messages by creation date
+    if (thread.messages) {
+      thread.messages.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      );
+    }
+
+    return thread;
+  }
+
+  /**
+   * Create a message within a thread
+   */
+  async createMessageInThread(
+    threadId: string,
+    senderId: string,
+    senderType: MessageSenderType,
+    createMessageDto: CreateMessageInThreadDto,
+  ): Promise<POAMessage> {
+    // Verify thread exists
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+    });
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    // Create message
+    const message = this.messageRepository.create({
+      threadId,
+      poaId: thread.poaId, // Denormalized for fast queries
+      senderId,
+      senderType,
+      message: createMessageDto.message,
+    });
+
+    const savedMessage = await this.messageRepository.save(message);
+
+    // Update thread metadata
+    thread.messageCount = thread.messageCount + 1;
+    thread.lastMessageAt = new Date();
+
+    // Increment unread count if message is from the other party
+    if (
+      (thread.createdByType === ThreadCreatedBy.ADMIN &&
+        senderType === MessageSenderType.CLIENT) ||
+      (thread.createdByType === ThreadCreatedBy.CLIENT &&
+        senderType === MessageSenderType.ADMIN)
+    ) {
+      thread.unreadCount = thread.unreadCount + 1;
+    }
+
+    await this.threadRepository.save(thread);
+
+    this.logger.log(
+      `Message created in thread ${threadId} by ${senderType} ${senderId}`,
+    );
+
+    return savedMessage;
+  }
+
+  /**
+   * Get messages for a thread
+   */
+  async getThreadMessages(threadId: string): Promise<POAMessage[]> {
+    // Verify thread exists
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+    });
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    return this.messageRepository.find({
+      where: { threadId },
+      relations: ['sender'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  /**
+   * Mark thread messages as read
+   */
+  async markThreadAsRead(
+    threadId: string,
+    userId: string,
+    userType: MessageSenderType,
+  ): Promise<void> {
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+    });
+
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    // Mark all unread messages from the other party as read
+    const oppositeSenderType =
+      userType === MessageSenderType.ADMIN
+        ? MessageSenderType.CLIENT
+        : MessageSenderType.ADMIN;
+
+    const unreadMessages = await this.messageRepository.find({
+      where: {
+        threadId,
+        senderType: oppositeSenderType,
+        isRead: false,
+      },
+    });
+
+    if (unreadMessages.length > 0) {
+      const now = new Date();
+      for (const message of unreadMessages) {
+        message.isRead = true;
+        message.readAt = now;
+      }
+      await this.messageRepository.save(unreadMessages);
+
+      // Reset unread count
+      thread.unreadCount = Math.max(0, thread.unreadCount - unreadMessages.length);
+      await this.threadRepository.save(thread);
+
+      this.logger.log(
+        `Marked ${unreadMessages.length} messages as read in thread ${threadId}`,
+      );
+    }
+  }
+
+  /**
+   * Close a thread
+   */
+  async closeThread(threadId: string): Promise<POAThread> {
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+    });
+
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    thread.status = 'closed' as any; // ThreadStatus.CLOSED
+    await this.threadRepository.save(thread);
+
+    this.logger.log(`Thread ${threadId} closed`);
+    return thread;
+  }
+
+  /**
+   * Reopen a thread
+   */
+  async reopenThread(threadId: string): Promise<POAThread> {
+    const thread = await this.threadRepository.findOne({
+      where: { id: threadId },
+    });
+
+    if (!thread) {
+      throw new NotFoundException(`Hilo con ID ${threadId} no encontrado`);
+    }
+
+    thread.status = 'open' as any; // ThreadStatus.OPEN
+    await this.threadRepository.save(thread);
+
+    this.logger.log(`Thread ${threadId} reopened`);
+    return thread;
+  }
+
+  // ============================================
+  // MESSAGE METHODS (LEGACY - to be migrated)
   // ============================================
 
   /**
    * Create a new message for a POA
+   * @deprecated Use createThread + createMessageInThread instead
+   * This method creates a thread automatically for backward compatibility
    */
   async createMessage(
     poaId: string,
@@ -1077,26 +1326,37 @@ export class PoaService {
       throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
     }
 
-    // Create message
-    const message = this.messageRepository.create({
-      poaId,
-      senderId,
-      senderType,
+    // Create a thread first (for backward compatibility)
+    const threadCreatedBy =
+      senderType === MessageSenderType.ADMIN
+        ? ThreadCreatedBy.ADMIN
+        : ThreadCreatedBy.CLIENT;
+
+    const thread = await this.createThread(poaId, senderId, threadCreatedBy, {
       type: createMessageDto.type,
       subject: createMessageDto.subject,
-      message: createMessageDto.message,
     });
 
-    const savedMessage = await this.messageRepository.save(message);
-    this.logger.log(
-      `Message created for POA ${poaId} by ${senderType} ${senderId}`,
+    // Create message in the thread
+    const message = await this.createMessageInThread(
+      thread.id,
+      senderId,
+      senderType,
+      {
+        message: createMessageDto.message,
+      },
     );
 
-    return savedMessage;
+    this.logger.log(
+      `Legacy message created (thread ${thread.id}) for POA ${poaId} by ${senderType} ${senderId}`,
+    );
+
+    return message;
   }
 
   /**
    * Get all messages for a POA
+   * @deprecated Use getThreads instead to get organized conversations
    */
   async getMessages(poaId: string): Promise<POAMessage[]> {
     // Verify POA exists
@@ -1105,8 +1365,10 @@ export class PoaService {
       throw new NotFoundException(`POA con ID ${poaId} no encontrado`);
     }
 
+    // Get all messages from all threads of this POA
     return this.messageRepository.find({
       where: { poaId },
+      relations: ['sender'],
       order: { createdAt: 'DESC' },
     });
   }
