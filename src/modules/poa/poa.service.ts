@@ -120,6 +120,22 @@ export class PoaService {
     );
 
     this.logger.log(`POA ${savedPoa.id} created successfully`);
+
+    // Load POA with relations for notification
+    const fullPoa = await this.poaRepository.findOne({
+      where: { id: savedPoa.id },
+      relations: ['client'],
+    });
+
+    if (fullPoa && fullPoa.client) {
+      // Emit event for notification
+      this.eventEmitter.emit('poa.created', {
+        poa: fullPoa,
+        client: fullPoa.client,
+        createdAt: fullPoa.createdAt,
+      });
+    }
+
     return savedPoa;
   }
 
