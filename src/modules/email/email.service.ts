@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import {
   SendEmailDto,
   SendOtpEmailDto,
@@ -13,7 +14,7 @@ import { getWelcomeEmailTemplate } from './templates/welcome.template';
 import { getPasswordResetTemplate } from './templates/password-reset.template';
 
 /**
- * EmailService - Servicio de envío de correos usando Resend
+ * EmailService - Servicio de envío de correos usando Gmail SMTP
  *
  * Este módulo es COMPLETAMENTE OPCIONAL.
  * Si se elimina, el sistema seguirá funcionando sin envío de emails.
@@ -21,7 +22,7 @@ import { getPasswordResetTemplate } from './templates/password-reset.template';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private resend: Resend | null = null;
+  private transporter: Transporter | null = null;
   private isConfigured = false;
   private readonly defaultFrom: string;
 
@@ -33,28 +34,36 @@ export class EmailService {
   }
 
   /**
-   * Inicializa Resend solo si está configurado
+   * Inicializa Gmail SMTP solo si está configurado
    */
   private initialize(): void {
-    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+    const user = this.configService.get<string>('GMAIL_USER');
+    const pass = this.configService.get<string>('GMAIL_APP_PASSWORD');
 
-    if (!apiKey || apiKey === '' || apiKey === 'your_resend_api_key_here') {
+    if (!user || !pass || user === '' || pass === '') {
       this.logger.warn(
-        '⚠️  Resend no configurado - EmailService en modo deshabilitado',
+        '⚠️  Gmail SMTP no configurado - EmailService en modo deshabilitado',
       );
       this.logger.warn(
-        '   Configura RESEND_API_KEY en .env para habilitar envío de emails',
+        '   Configura GMAIL_USER y GMAIL_APP_PASSWORD en .env para habilitar envío de emails',
       );
       this.isConfigured = false;
       return;
     }
 
     try {
-      this.resend = new Resend(apiKey);
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user,
+          pass,
+        },
+      });
       this.isConfigured = true;
-      this.logger.log('✅ EmailService configurado correctamente con Resend');
+      this.logger.log('✅ EmailService configurado correctamente con Gmail SMTP');
+      this.logger.log(`📧 Usando cuenta: ${user}`);
     } catch (error) {
-      this.logger.error('❌ Error inicializando Resend:', error.message);
+      this.logger.error('❌ Error inicializando Gmail SMTP:', error.message);
       this.isConfigured = false;
     }
   }
@@ -63,7 +72,7 @@ export class EmailService {
    * Verifica si el servicio de email está disponible
    */
   isAvailable(): boolean {
-    return this.isConfigured && this.resend !== null;
+    return this.isConfigured && this.transporter !== null;
   }
 
   /**
@@ -79,35 +88,27 @@ export class EmailService {
     }
 
     try {
-      if (!this.resend) {
-        throw new Error('Resend client not initialized');
+      if (!this.transporter) {
+        throw new Error('Gmail SMTP transporter not initialized');
       }
 
-      const emailData: any = {
+      const mailOptions: any = {
         from: dto.from || this.defaultFrom,
         to: dto.to,
         subject: dto.subject,
       };
 
       // Solo agregar campos opcionales si están definidos
-      if (dto.html) emailData.html = dto.html;
-      if (dto.text) emailData.text = dto.text;
-      if (dto.replyTo) emailData.replyTo = dto.replyTo;
+      if (dto.html) mailOptions.html = dto.html;
+      if (dto.text) mailOptions.text = dto.text;
+      if (dto.replyTo) mailOptions.replyTo = dto.replyTo;
 
-      const { data, error } = await this.resend.emails.send(emailData);
-
-      if (error) {
-        this.logger.error('Error enviando email:', error);
-        return {
-          success: false,
-          error: error.message,
-        };
-      }
+      const info = await this.transporter.sendMail(mailOptions);
 
       this.logger.log(`📧 Email enviado exitosamente a ${dto.to}`);
       return {
         success: true,
-        messageId: data?.id,
+        messageId: info.messageId,
       };
     } catch (error) {
       this.logger.error('Error inesperado enviando email:', error);
@@ -200,29 +201,27 @@ export class EmailService {
   }
 
   /**
-   * Método para testing - verifica conectividad con Resend
+   * Método para testing - verifica conectividad con Gmail SMTP
    */
   async testConnection(): Promise<{ success: boolean; message: string }> {
     if (!this.isAvailable()) {
       return {
         success: false,
-        message: 'Resend no está configurado',
+        message: 'Gmail SMTP no está configurado',
       };
     }
 
     try {
-      // Intenta enviar un email de prueba a una dirección de test de Resend
-      const result = await this.sendEmail({
-        to: 'delivered@resend.dev', // Email especial de Resend para testing
-        subject: 'Test de conexión',
-        text: 'Este es un email de prueba desde Emigrantes FT',
-      });
+      if (!this.transporter) {
+        throw new Error('Gmail SMTP transporter not initialized');
+      }
+
+      // Verificar la conexión SMTP
+      await this.transporter.verify();
 
       return {
-        success: result.success,
-        message: result.success
-          ? 'Conexión exitosa con Resend'
-          : result.error || 'Error desconocido',
+        success: true,
+        message: 'Conexión exitosa con Gmail SMTP',
       };
     } catch (error) {
       return {

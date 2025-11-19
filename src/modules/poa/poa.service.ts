@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, In } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as fs from 'fs';
 import * as path from 'path';
 import { POA, POAStatus, POAType } from './entities/poa.entity';
@@ -52,6 +53,7 @@ export class PoaService {
     @InjectRepository(POAThread)
     private threadRepository: Repository<POAThread>,
     private encryptionService: EncryptionService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ============================================
