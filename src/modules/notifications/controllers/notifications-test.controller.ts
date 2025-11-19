@@ -37,6 +37,8 @@ export class NotificationsTestController {
       clientAddress: '123 Test Street, Miami, FL',
       createdAt: new Date(),
       updatedAt: new Date(),
+      notarizedAt: new Date(),
+      activatedAt: new Date(),
     };
 
     const mockClient = {
@@ -81,7 +83,7 @@ export class NotificationsTestController {
       createdAt: new Date(),
     };
 
-    const results = [];
+    const results: Array<{ event: string; status: string; to: string }> = [];
 
     try {
       // 1. POA Created (notifica a admins)
@@ -104,7 +106,7 @@ export class NotificationsTestController {
       this.eventEmitter.emit('poa.assigned', {
         poa: mockPoa,
         client: mockClient,
-        assignedAdmin: mockAdmin,
+        manager: mockAdmin,
         assignedAt: new Date(),
       });
       results.push({ event: 'poa.assigned', status: 'emitted', to: clientEmail });
@@ -113,8 +115,7 @@ export class NotificationsTestController {
       this.eventEmitter.emit('poa.in-review', {
         poa: mockPoa,
         client: mockClient,
-        reviewedBy: mockAdmin,
-        reviewStartedAt: new Date(),
+        reviewedAt: new Date(),
       });
       results.push({ event: 'poa.in-review', status: 'emitted', to: clientEmail });
 
@@ -129,11 +130,11 @@ export class NotificationsTestController {
 
       // 6. POA Rejected (notifica al cliente)
       this.eventEmitter.emit('poa.rejected', {
-        poa: { ...mockPoa, rejectionReason: 'Información incompleta' },
+        poa: mockPoa,
         client: mockClient,
         rejectedBy: mockAdmin,
         rejectedAt: new Date(),
-        rejectionReason: 'Información incompleta',
+        reason: 'Información incompleta',
       });
       results.push({ event: 'poa.rejected', status: 'emitted', to: clientEmail });
 
@@ -180,8 +181,8 @@ export class NotificationsTestController {
         poa: mockPoa,
         client: mockClient,
         document: mockDocument,
+        uploadedAt: new Date(),
         uploadedBy: mockClient,
-        manager: mockAdmin,
       });
       results.push({ event: 'document.uploaded', status: 'emitted', to: `${clientEmail}, ${adminEmail}` });
 
@@ -202,7 +203,7 @@ export class NotificationsTestController {
         document: mockDocument,
         rejectedBy: mockAdmin,
         rejectedAt: new Date(),
-        rejectionReason: 'Documento ilegible',
+        reason: 'Documento ilegible',
       });
       results.push({ event: 'document.rejected', status: 'emitted', to: clientEmail });
 
@@ -297,11 +298,11 @@ export class NotificationsTestController {
 
         case 'poa.rejected':
           this.eventEmitter.emit('poa.rejected', {
-            poa: { ...mockPoa, rejectionReason: 'Test rejection' },
+            poa: mockPoa,
             client: mockClient,
             rejectedBy: mockAdmin,
             rejectedAt: new Date(),
-            rejectionReason: 'Test rejection reason',
+            reason: 'Test rejection reason',
           });
           break;
 
