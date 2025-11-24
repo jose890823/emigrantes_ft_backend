@@ -16,6 +16,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PoaModule } from './modules/poa/poa.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UsersModule } from './modules/users/users.module';
+import { PlansModule } from './modules/plans/plans.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 // Importación condicional de módulos opcionales
 let EmailModule: any = null;
@@ -48,6 +50,8 @@ if (existsSync(emailModulePath + '.ts') || existsSync(emailModulePath + '.js')) 
     PoaModule,
     NotificationsModule,
     UsersModule,
+    PlansModule,
+    PaymentsModule,
     // Módulos opcionales
     ...(EmailModule ? [EmailModule] : []),
   ],
@@ -78,6 +82,8 @@ export class AppModule {
     AppModule.logger.log('🔐 AuthModule integrado - Autenticación JWT completa');
     AppModule.logger.log('📄 PoaModule integrado - Gestión de Power of Attorney');
     AppModule.logger.log('🔔 NotificationsModule integrado - Sistema multi-canal con cola de procesamiento');
+    AppModule.logger.log('💰 PlansModule integrado - Gestión de planes de suscripción');
+    AppModule.logger.log('💳 PaymentsModule integrado - Pagos con Stripe y suscripciones');
 
     // Log módulos opcionales
     if (EmailModule) {

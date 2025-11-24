@@ -170,6 +170,18 @@ export class User {
   @Column({ type: 'text', nullable: true })
   identificationNumber: string | null;
 
+  // ============================================
+  // INTEGRACIÓN CON STRIPE
+  // ============================================
+
+  @ApiProperty({
+    example: 'cus_1234567890abcdef',
+    description: 'ID del cliente en Stripe',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeCustomerId: string | null;
+
   @Exclude() // Token sensible, no exponer
   @Column({ type: 'varchar', length: 500, nullable: true })
   refreshToken: string | null;

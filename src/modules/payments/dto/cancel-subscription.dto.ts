@@ -1,24 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class CancelSubscriptionDto {
   @ApiProperty({
     description: 'Razón de la cancelación',
     example: 'Ya no necesito el servicio',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  reason?: string;
+  reason: string;
 
-  @ApiProperty({
-    description:
-      'Si es true, cancela al final del período de facturación actual. Si es false, cancela inmediatamente.',
+  @ApiPropertyOptional({
+    description: 'Cancelar al final del período actual (true) o inmediatamente (false)',
     example: true,
     default: true,
-    required: false,
   })
   @IsOptional()
   @IsBoolean()
   cancelAtPeriodEnd?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Comentarios adicionales del usuario',
+    example: 'Volveré cuando mejore mi situación económica',
+  })
+  @IsOptional()
+  @IsString()
+  feedback?: string;
 }
